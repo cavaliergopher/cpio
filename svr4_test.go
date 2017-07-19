@@ -57,9 +57,9 @@ func TestWrite(t *testing.T) {
 
 	for _, file := range files {
 		hdr := &Header{
-			name: file.Name,
-			mode: 0644,
-			size: int64(len(file.Body)),
+			Name: file.Name,
+			Mode: 0644,
+			Size: int64(len(file.Body)),
 		}
 
 		if err := w.WriteHeader(hdr); err != nil {

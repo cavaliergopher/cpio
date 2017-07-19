@@ -46,13 +46,13 @@ func (w *Writer) WriteHeader(hdr *Header) (err error) {
 		return
 	}
 
-	w.nb = hdr.size
-	w.pad = (4 - (hdr.size % 4)) % 4
+	w.nb = hdr.Size
+	w.pad = (4 - (hdr.Size % 4)) % 4
 
 	// TODO: padding should be decided by header version
 
 	w.inode++
-	hdr.inode = w.inode
+	hdr.Inode = w.inode
 	_, err = writeHeader(w.w, hdr)
 	return
 }
@@ -105,8 +105,8 @@ func (w *Writer) Close() error {
 		return nil
 	}
 	hdr := &Header{
-		name:  string(svr4EOFHeader),
-		links: 1,
+		Name:  string(svr4EOFHeader),
+		Links: 1,
 	}
 	if err := w.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("error writing final header: %v", err)

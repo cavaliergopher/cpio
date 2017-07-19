@@ -50,7 +50,7 @@ func (r *Reader) Next() (*Header, error) {
 
 	// skip ahead
 	// TODO: padding is version specific. Should be determined from header
-	skp := r.eof + (4-(r.hdr.Size()%4))%4
+	skp := r.eof + (4-(r.hdr.Size%4))%4
 	if n, err := io.CopyN(ioutil.Discard, r.r, skp); err != nil {
 		return nil, err
 	} else if n < skp {
@@ -65,7 +65,7 @@ func (r *Reader) next() (*Header, error) {
 	r.eof = 0
 	r.hdr, err = readHeader(r.r)
 	if err == nil {
-		r.eof = r.hdr.Size()
+		r.eof = r.hdr.Size
 	}
 	return r.hdr, err
 }

@@ -49,23 +49,23 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 		return nil, io.EOF
 	}
 
-	h.name = string(name[:nameSize-1])
-	if _, err := fmt.Sscanf(string(buf[6:14]), "%X", &h.inode); err != nil {
+	h.Name = string(name[:nameSize-1])
+	if _, err := fmt.Sscanf(string(buf[6:14]), "%X", &h.Inode); err != nil {
 		return nil, fmt.Errorf("error reading inode in file header: %v", err)
 	}
-	if _, err := fmt.Sscanf(string(buf[14:22]), "%X", &h.mode); err != nil {
+	if _, err := fmt.Sscanf(string(buf[14:22]), "%X", &h.Mode); err != nil {
 		return nil, fmt.Errorf("error reading mode in file header: %v", err)
 	}
-	if _, err := fmt.Sscanf(string(buf[22:30]), "%X", &h.uid); err != nil {
+	if _, err := fmt.Sscanf(string(buf[22:30]), "%X", &h.Uid); err != nil {
 		return nil, fmt.Errorf("error reading Owner in file header: %v", err)
 	}
-	if _, err := fmt.Sscanf(string(buf[30:38]), "%X", &h.gid); err != nil {
+	if _, err := fmt.Sscanf(string(buf[30:38]), "%X", &h.Gid); err != nil {
 		return nil, fmt.Errorf("error reading device Group in file header: %v", err)
 	}
-	if _, err := fmt.Sscanf(string(buf[38:46]), "%X", &h.links); err != nil {
+	if _, err := fmt.Sscanf(string(buf[38:46]), "%X", &h.Links); err != nil {
 		return nil, fmt.Errorf("error reading link count in file header: %v", err)
 	}
-	if _, err := fmt.Sscanf(string(buf[54:62]), "%X", &h.size); err != nil {
+	if _, err := fmt.Sscanf(string(buf[54:62]), "%X", &h.Size); err != nil {
 		return nil, fmt.Errorf("error reading file size in file header: %v", err)
 	}
 
@@ -73,7 +73,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	if _, err := fmt.Sscanf(string(buf[46:54]), "%X", &unixTime); err != nil {
 		return nil, fmt.Errorf("error reading modified time in file header: %v", err)
 	}
-	h.modTime = time.Unix(unixTime, 0)
+	h.ModTime = time.Unix(unixTime, 0)
 
 	// skip to end of header - padding to a multiple of 4
 	pad := (4 - (len(buf)+len(name))%4) % 4
@@ -92,31 +92,31 @@ func writeSVR4Header(w io.Writer, hdr *Header) (n int, err error) {
 		return
 	}
 
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.inode)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Inode)))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.mode)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Mode)))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.uid)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Uid)))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.gid)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Gid)))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.links)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Links)))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.modTime.Unix())))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.ModTime.Unix())))
 	if err != nil {
 		return
 	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.size)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Size)))
 	if err != nil {
 		return
 	}
@@ -127,7 +127,7 @@ func writeSVR4Header(w io.Writer, hdr *Header) (n int, err error) {
 		return
 	}
 
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", len(hdr.name)+1)))
+	n, err = w.Write([]byte(fmt.Sprintf("%08X", len(hdr.Name)+1)))
 	if err != nil {
 		return
 	}
@@ -138,14 +138,14 @@ func writeSVR4Header(w io.Writer, hdr *Header) (n int, err error) {
 		return
 	}
 
-	n, err = w.Write([]byte(hdr.name))
+	n, err = w.Write([]byte(hdr.Name))
 	if err != nil {
 		return
 	}
 
 	// pad to multiple of 4
 	// 111 is the length of the header plus the null-terminator for the name
-	pad := (4 - ((111 + len(hdr.name)) % 4)) % 4
+	pad := (4 - ((111 + len(hdr.Name)) % 4)) % 4
 	n, err = w.Write(zeroBlock[:pad])
 	if err != nil {
 		return
