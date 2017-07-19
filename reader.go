@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"math"
 )
 
 // A Reader provides sequential access to the contents of a CPIO archive. A CPIO
@@ -51,12 +50,7 @@ func (r *Reader) Next() (*Header, error) {
 
 	// skip ahead
 	// TODO: padding is version specific. Should be determined from header
-	skp := r.eof
-	pad := 4 - int(math.Mod(float64(r.hdr.Size), 4))
-	if pad > 0 && pad < 4 {
-		skp += int64(pad)
-	}
-
+	skp := r.eof + (4-(r.hdr.Size()%4))%4
 	if n, err := io.CopyN(ioutil.Discard, r.r, skp); err != nil {
 		return nil, err
 	} else if n < skp {
@@ -71,7 +65,7 @@ func (r *Reader) next() (*Header, error) {
 	r.eof = 0
 	r.hdr, err = readHeader(r.r)
 	if err == nil {
-		r.eof = r.hdr.Size
+		r.eof = r.hdr.Size()
 	}
 	return r.hdr, err
 }

@@ -23,7 +23,7 @@ type Writer struct {
 	nb     int64 // number of unwritten bytes for current file entry
 	pad    int64 // amount of padding to write after current file entry
 	closed bool
-	inode  int
+	inode  int64
 }
 
 // NewWriter creates a new Writer writing to w.
@@ -46,13 +46,13 @@ func (w *Writer) WriteHeader(hdr *Header) (err error) {
 		return
 	}
 
-	w.nb = hdr.Size
-	w.pad = (4 - (hdr.Size % 4)) % 4
+	w.nb = hdr.size
+	w.pad = (4 - (hdr.size % 4)) % 4
 
 	// TODO: padding should be decided by header version
 
 	w.inode++
-	hdr.Inode = w.inode
+	hdr.inode = w.inode
 	_, err = writeHeader(w.w, hdr)
 	return
 }
@@ -105,8 +105,8 @@ func (w *Writer) Close() error {
 		return nil
 	}
 	hdr := &Header{
-		Name:  string(eofHeader),
-		Links: 1,
+		name:  string(svr4EOFHeader),
+		links: 1,
 	}
 	if err := w.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("error writing final header: %v", err)
