@@ -3,8 +3,6 @@ package cpio
 import (
 	"io"
 	"os"
-	"os/user"
-	"strconv"
 	"time"
 )
 
@@ -54,24 +52,6 @@ func (h *Header) Uid() int {
 
 func (h *Header) Gid() int {
 	return h.gid
-}
-
-func (h *Header) Owner() string {
-	u, err := user.LookupId(strconv.Itoa(h.uid))
-	if err != nil {
-		return strconv.Itoa(h.uid)
-	}
-
-	return u.Name
-}
-
-func (h *Header) Group() string {
-	g, err := user.LookupGroupId(strconv.Itoa(h.gid))
-	if err != nil {
-		return strconv.Itoa(h.gid)
-	}
-
-	return g.Name
 }
 
 func (h *Header) Inode() int64 {
