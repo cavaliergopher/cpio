@@ -2,8 +2,8 @@ package cpio
 
 import (
 	"io"
-	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -11,7 +11,7 @@ var files = []struct {
 	Name, Body string
 }{
 	{"./readme.txt", "This archive contains some text files."},
-	{"./gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+	{"./gophers.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
 	{"./todo.txt", "Get animal handling license."},
 }
 
@@ -38,14 +38,15 @@ func TestRead(t *testing.T) {
 }
 
 func TestWrite(t *testing.T) {
-	f, err := ioutil.TempFile("", "cpio-test-")
+	//f, err := ioutil.TempFile("", "cpio-test-")
+	f, err := os.OpenFile("./testdata/out_svr4.cpio", os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		t.Fatalf("error creating temp file: %v", err)
 	}
 
 	defer func() {
 		f.Close()
-		os.Remove(f.Name())
+		//os.Remove(f.Name())
 	}()
 
 	w := NewWriter(f)
@@ -56,20 +57,31 @@ func TestWrite(t *testing.T) {
 	}()
 
 	for _, file := range files {
+		path := filepath.Join("./testdata", file.Name)
+		infile, err := os.Open(path)
+		if err != nil {
+			t.Fatalf("cannot open test file: %v", err)
+		}
+
+		fi, err := infile.Stat()
+		if err != nil {
+			t.Fatalf("cannot stat test file: %v", err)
+		}
+
 		hdr := &Header{
 			Name: file.Name,
-			Mode: 0644,
-			Size: int64(len(file.Body)),
+			Mode: fi.Mode(),
+			Size: fi.Size(),
 		}
 
 		if err := w.WriteHeader(hdr); err != nil {
 			t.Fatalf("error writing header: %v", err)
 		}
 
-		if n, err := w.Write([]byte(file.Body)); err != nil {
+		if n, err := io.Copy(w, infile); err != nil {
 			t.Fatalf("error writing file body: %v", err)
-		} else if n != len(file.Body) {
-			t.Fatalf("bad write length: expect %v, got %v", len(file.Body), n)
+		} else if n != fi.Size() {
+			t.Fatalf("bad write length: expect %v, got %v", fi.Size(), n)
 		}
 	}
 }

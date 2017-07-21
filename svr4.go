@@ -132,7 +132,7 @@ func writeSVR4Header(w io.Writer, hdr *Header) (n int, err error) {
 		return
 	}
 
-	// nil check
+	// nil CRC check
 	n, err = w.Write([]byte("00000000"))
 	if err != nil {
 		return
