@@ -25,7 +25,7 @@ var (
 type Checksum uint32
 
 func (c Checksum) String() string {
-	return fmt.Sprintf("%04X", uint32(c))
+	return fmt.Sprintf("%08X", uint32(c))
 }
 
 // A Header represents a single header in a CPIO archive.
