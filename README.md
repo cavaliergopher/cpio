@@ -7,3 +7,14 @@ __WARNING:__ This package is currently under rapid development and subject to
 bug infestations and frequent breaking changes.
 
 Contributions welcome!
+
+## TODO
+
+- [x] Implement SVR4 Readers and CRC check
+- [x] Implement FileInfo input and output
+- [x] Add example for reading an archive
+- [ ] Implement file types
+- [ ] Implement Writers
+- [ ] Implement binary format
+- [ ] Implement portable ASCII
+- [ ] Maybe implement Extract convenience method
