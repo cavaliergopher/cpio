@@ -38,13 +38,6 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 		return nil, ErrHeader
 	}
 
-	// create invariant that all bytes are valid hex values in ascii
-	for i := 0; i < len(buf); i++ {
-		if buf[i] < 0x30 || buf[i] > 0x46 { // ASCII '0' to 'F'
-			return nil, ErrHeader
-		}
-	}
-
 	asc := string(buf[:])
 	hdr := &Header{}
 
