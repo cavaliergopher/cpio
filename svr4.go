@@ -2,154 +2,87 @@ package cpio
 
 import (
 	"bytes"
-	"fmt"
 	"io"
+	"os"
+	"strconv"
 	"time"
 )
 
-var (
-	// svr4Magic is the magic string ("070701") for an ASCII cpio archive (SVR4
-	// with no CRC)
-	svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31}
-
-	// svr4EOFHeader is the value of the filename of the last header
-	// ("TRAILER!!!\x00")in a SVR4 archive.
-	svr4EOFHeader = []byte{0x54, 0x52, 0x41, 0x49, 0x4C, 0x45, 0x52, 0x21, 0x21, 0x21, 0x00}
+const (
+	svr4MaxNameSize = 4096 // MAX_PATH
+	svr4MaxFileSize = 4294967295
 )
+
+func readHex(s string) int64 {
+	// errors are ignored and 0 returned
+	i, _ := strconv.ParseInt(s, 16, 64)
+	return i
+}
 
 func readSVR4Header(r io.Reader) (*Header, error) {
 	var buf [110]byte
 	if _, err := r.Read(buf[:]); err != nil {
-		if err == io.EOF {
-			return nil, err
-		}
-
-		return nil, fmt.Errorf("error reading file header: %v", err)
+		return nil, err
 	}
+
+	// TODO: check endianness
 
 	// check magic
-	if !bytes.Equal(svr4Magic, buf[:6]) {
-		return nil, fmt.Errorf("error reading file header: invalid magic number: %0X", buf[:6])
+	hasCRC := false
+	if !bytes.HasPrefix(buf[:], []byte{0x30, 0x37, 0x30, 0x37, 0x30}) { // 07070
+		return nil, ErrHeader
+	}
+	if buf[5] == 0x32 { // '2'
+		hasCRC = true
+	} else if buf[5] != 0x31 { // '1'
+		return nil, ErrHeader
 	}
 
-	h := &Header{}
+	// create invariant that all bytes are valid hex values in ascii
+	for i := 0; i < len(buf); i++ {
+		if buf[i] < 0x30 || buf[i] > 0x46 { // ASCII '0' to 'F'
+			return nil, ErrHeader
+		}
+	}
 
-	// read file name
-	var nameSize int64
-	if _, err := fmt.Sscanf(string(buf[94:102]), "%X", &nameSize); err != nil {
-		return nil, fmt.Errorf("error reading name length in file header: %v", err)
+	asc := string(buf[:])
+	hdr := &Header{}
+
+	hdr.Inode = readHex(asc[6:14])
+	hdr.Mode = os.FileMode(readHex(asc[14:22]))
+	hdr.UID = int(readHex(asc[22:30]))
+	hdr.GID = int(readHex(asc[30:38]))
+	hdr.Links = int(readHex(asc[38:46]))
+	hdr.ModTime = time.Unix(readHex(asc[46:54]), 0)
+	hdr.Size = readHex(asc[54:62])
+	if hdr.Size > svr4MaxFileSize {
+		return nil, ErrHeader
+	}
+	nameSize := readHex(asc[94:102])
+	if nameSize > svr4MaxNameSize {
+		return nil, ErrHeader
+	}
+	hdr.Checksum = Checksum(readHex(asc[102:110]))
+	if !hasCRC && hdr.Checksum != 0 {
+		return nil, ErrHeader
 	}
 
 	name := make([]byte, nameSize)
 	if _, err := io.ReadFull(r, name); err != nil {
-		return nil, fmt.Errorf("error reading name in file header: %v", err)
+		return nil, err
 	}
-
-	if bytes.Equal(name, svr4EOFHeader) {
+	if bytes.Equal(name, headerEOF) {
 		return nil, io.EOF
 	}
-
-	h.Name = string(name[:nameSize-1])
-	if _, err := fmt.Sscanf(string(buf[6:14]), "%X", &h.Inode); err != nil {
-		return nil, fmt.Errorf("error reading inode in file header: %v", err)
-	}
-	if _, err := fmt.Sscanf(string(buf[14:22]), "%X", &h.Mode); err != nil {
-		return nil, fmt.Errorf("error reading mode in file header: %v", err)
-	}
-	if _, err := fmt.Sscanf(string(buf[22:30]), "%X", &h.Uid); err != nil {
-		return nil, fmt.Errorf("error reading Owner in file header: %v", err)
-	}
-	if _, err := fmt.Sscanf(string(buf[30:38]), "%X", &h.Gid); err != nil {
-		return nil, fmt.Errorf("error reading device Group in file header: %v", err)
-	}
-	if _, err := fmt.Sscanf(string(buf[38:46]), "%X", &h.Links); err != nil {
-		return nil, fmt.Errorf("error reading link count in file header: %v", err)
-	}
-	if _, err := fmt.Sscanf(string(buf[54:62]), "%X", &h.Size); err != nil {
-		return nil, fmt.Errorf("error reading file size in file header: %v", err)
-	}
-
-	var unixTime int64
-	if _, err := fmt.Sscanf(string(buf[46:54]), "%X", &unixTime); err != nil {
-		return nil, fmt.Errorf("error reading modified time in file header: %v", err)
-	}
-	h.ModTime = time.Unix(unixTime, 0)
+	hdr.Name = string(name[:nameSize-1])
 
 	// skip to end of header - padding to a multiple of 4
 	pad := (4 - (len(buf)+len(name))%4) % 4
 	if pad > 0 {
 		if _, err := io.ReadFull(r, buf[:pad]); err != nil {
-			return nil, fmt.Errorf("error reading to end of header: %v", err)
+			return nil, nil
 		}
 	}
 
-	return h, nil
-}
-
-func writeSVR4Header(w io.Writer, hdr *Header) (n int, err error) {
-	n, err = w.Write(svr4Magic)
-	if err != nil {
-		return
-	}
-
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Inode)))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Mode)))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Uid)))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Gid)))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Links)))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.ModTime.Unix())))
-	if err != nil {
-		return
-	}
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", hdr.Size)))
-	if err != nil {
-		return
-	}
-
-	// dev/rdev major/minor
-	n, err = w.Write([]byte("00000000000000000000000000000000"))
-	if err != nil {
-		return
-	}
-
-	n, err = w.Write([]byte(fmt.Sprintf("%08X", len(hdr.Name)+1)))
-	if err != nil {
-		return
-	}
-
-	// nil CRC check
-	n, err = w.Write([]byte("00000000"))
-	if err != nil {
-		return
-	}
-
-	n, err = w.Write([]byte(hdr.Name))
-	if err != nil {
-		return
-	}
-
-	// pad to multiple of 4
-	// 111 is the length of the header plus the null-terminator for the name
-	pad := (4 - ((111 + len(hdr.Name)) % 4)) % 4
-	n, err = w.Write(zeroBlock[:pad])
-	if err != nil {
-		return
-	}
-
-	return
+	return hdr, nil
 }

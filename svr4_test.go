@@ -3,85 +3,66 @@ package cpio
 import (
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 )
 
 var files = []struct {
 	Name, Body string
 }{
-	{"./readme.txt", "This archive contains some text files."},
 	{"./gophers.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+	{"./readme.txt", "This archive contains some text files."},
 	{"./todo.txt", "Get animal handling license."},
 }
 
 func TestRead(t *testing.T) {
-	f, err := os.Open("testdata/test_svr4.cpio")
+	f, err := os.Open("testdata/test_svr4_crc.cpio")
 	if err != nil {
 		t.Fatalf("error opening test file: %v", err)
 	}
 	defer f.Close()
 
 	r := NewReader(f)
-	for i := 1; i > 0; i++ {
-		_, err := r.Next()
+	for {
+		hdr, err := r.Next()
 		if err != nil {
 			if err != io.EOF {
 				t.Errorf("error moving to next header: %v", err)
 			}
-			i = -1
 			return
 		}
 
 		// TODO: validate header fields
+		t.Logf("%v", hdr)
 	}
 }
 
-func TestWrite(t *testing.T) {
-	//f, err := ioutil.TempFile("", "cpio-test-")
-	f, err := os.OpenFile("./testdata/out_svr4.cpio", os.O_CREATE|os.O_WRONLY, 0644)
+func TestSVR4CRC(t *testing.T) {
+	f, err := os.Open("testdata/test_svr4_crc.cpio")
 	if err != nil {
-		t.Fatalf("error creating temp file: %v", err)
+		t.Fatalf("error opening test file: %v", err)
 	}
+	defer f.Close()
 
-	defer func() {
-		f.Close()
-		//os.Remove(f.Name())
-	}()
-
-	w := NewWriter(f)
-	defer func() {
-		if err := w.Close(); err != nil {
-			t.Fatalf("error closing write: %v", err)
-		}
-	}()
-
-	for _, file := range files {
-		path := filepath.Join("./testdata", file.Name)
-		infile, err := os.Open(path)
+	w := NewHash()
+	r := NewReader(f)
+	for {
+		hdr, err := r.Next()
 		if err != nil {
-			t.Fatalf("cannot open test file: %v", err)
+			if err != io.EOF {
+				t.Errorf("error moving to next header: %v", err)
+			}
+			return
 		}
 
-		fi, err := infile.Stat()
+		w.Reset()
+		_, err = io.CopyN(w, r, hdr.Size)
 		if err != nil {
-			t.Fatalf("cannot stat test file: %v", err)
+			t.Fatalf("error writing to checksum hash: %v", err)
 		}
 
-		hdr := &Header{
-			Name: file.Name,
-			Mode: fi.Mode(),
-			Size: fi.Size(),
-		}
-
-		if err := w.WriteHeader(hdr); err != nil {
-			t.Fatalf("error writing header: %v", err)
-		}
-
-		if n, err := io.Copy(w, infile); err != nil {
-			t.Fatalf("error writing file body: %v", err)
-		} else if n != fi.Size() {
-			t.Fatalf("bad write length: expect %v, got %v", fi.Size(), n)
+		sum := Checksum(w.Sum32())
+		if sum != hdr.Checksum {
+			t.Errorf("expected checksum %v, got %v for %v", hdr.Checksum, sum, hdr.Name)
 		}
 	}
 }

@@ -51,8 +51,8 @@ func (r *Reader) Next() (*Header, error) {
 	// skip ahead
 	// TODO: padding is version specific. Should be determined from header
 	skp := r.eof + (4-(r.hdr.Size%4))%4
-	if n, err := io.CopyN(ioutil.Discard, r.r, skp); err != nil {
-		return nil, err
+	n, err := io.CopyN(ioutil.Discard, r.r, skp)
+	if err == io.EOF && n < skp {
 	} else if n < skp {
 		return nil, fmt.Errorf("insufficient bytes read: expected %d, got %d", skp, n)
 	}
