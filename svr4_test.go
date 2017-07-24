@@ -1,7 +1,9 @@
 package cpio
 
 import (
+	"fmt"
 	"io"
+	"log"
 	"os"
 	"testing"
 )
@@ -65,4 +67,45 @@ func TestSVR4CRC(t *testing.T) {
 			t.Errorf("expected checksum %v, got %v for %v", hdr.Checksum, sum, hdr.Name)
 		}
 	}
+}
+
+func ExampleNewHash() {
+	// open cpio archive
+	f, err := os.Open("testdata/test_svr4_crc.cpio")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	w := NewHash()
+	r := NewReader(f)
+	for {
+		// skip to next file
+		hdr, err := r.Next()
+		if err != nil {
+			if err != io.EOF {
+				log.Fatal(err)
+			}
+			return
+		}
+
+		// read file into hash
+		w.Reset()
+		_, err = io.CopyN(w, r, hdr.Size)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// check hash matches header checksum
+		sum := Checksum(w.Sum32())
+		if sum == hdr.Checksum {
+			fmt.Printf("Checksum OK: %v (%v)\n", hdr.Name, hdr.Checksum)
+		} else {
+			fmt.Printf("Checksum FAIL: %v - expected %v, got %v\n", hdr.Name, hdr.Checksum, sum)
+		}
+	}
+	// Output:
+	// Checksum OK: gophers.txt (00000C98)
+	// Checksum OK: readme.txt (00000E3D)
+	// Checksum OK: todo.txt (00000A52)
 }
