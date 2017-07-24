@@ -52,7 +52,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 		return nil, ErrHeader
 	}
 	nameSize := readHex(asc[94:102])
-	if nameSize > svr4MaxNameSize {
+	if nameSize < 1 || nameSize > svr4MaxNameSize {
 		return nil, ErrHeader
 	}
 	hdr.Checksum = Checksum(readHex(asc[102:110]))
@@ -76,7 +76,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	pad := (4 - (len(buf)+len(name))%4) % 4
 	if pad > 0 {
 		if _, err := io.ReadFull(r, buf[:pad]); err != nil {
-			return nil, nil
+			return nil, err
 		}
 	}
 
