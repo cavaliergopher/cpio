@@ -40,6 +40,8 @@ type Header struct {
 	Size     int64       // size in bytes
 	Name     string      // filename
 	Checksum Checksum    // computed checksum
+
+	pad int64 // bytes to pad before next header
 }
 
 // FileInfo returns an os.FileInfo for the Header.

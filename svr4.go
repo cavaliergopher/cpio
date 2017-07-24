@@ -69,7 +69,10 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	}
 	hdr.Name = string(name[:nameSize-1])
 
-	// skip to end of header - padding to a multiple of 4
+	// padding between end of file and next header
+	hdr.pad = (4 - (hdr.Size % 4)) % 4
+
+	// skip to end of header/start of file
 	pad := (4 - (len(buf)+len(name))%4) % 4
 	if pad > 0 {
 		if _, err := io.ReadFull(r, buf[:pad]); err != nil {
