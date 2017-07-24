@@ -29,12 +29,10 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	if r.hdr == nil || r.eof == 0 {
 		return 0, io.EOF
 	}
-
 	rn := len(p)
 	if r.eof < int64(rn) {
 		rn = int(r.eof)
 	}
-
 	n, err = r.r.Read(p[0:rn])
 	r.eof -= int64(n)
 	return
@@ -46,9 +44,6 @@ func (r *Reader) Next() (*Header, error) {
 	if r.hdr == nil {
 		return r.next()
 	}
-
-	// skip ahead
-	// TODO: padding is version specific. Should be determined from header
 	skp := r.eof + r.hdr.pad
 	if skp > 0 {
 		_, err := io.CopyN(ioutil.Discard, r.r, skp)
@@ -56,16 +51,16 @@ func (r *Reader) Next() (*Header, error) {
 			return nil, err
 		}
 	}
-
 	return r.next()
 }
 
 func (r *Reader) next() (*Header, error) {
-	var err error
 	r.eof = 0
-	r.hdr, err = readHeader(r.r)
-	if err == nil {
-		r.eof = r.hdr.Size
+	hdr, err := readHeader(r.r)
+	if err != nil {
+		return nil, err
 	}
-	return r.hdr, err
+	r.hdr = hdr
+	r.eof = r.hdr.Size
+	return hdr, nil
 }
