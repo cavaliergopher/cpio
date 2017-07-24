@@ -21,7 +21,7 @@ func readHex(s string) int64 {
 
 func readSVR4Header(r io.Reader) (*Header, error) {
 	var buf [110]byte
-	if _, err := r.Read(buf[:]); err != nil {
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
 		return nil, err
 	}
 
