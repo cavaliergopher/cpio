@@ -3,7 +3,6 @@ package cpio
 import (
 	"bytes"
 	"io"
-	"os"
 	"strconv"
 	"time"
 )
@@ -42,7 +41,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	hdr := &Header{}
 
 	hdr.Inode = readHex(asc[6:14])
-	hdr.Mode = os.FileMode(readHex(asc[14:22]))
+	hdr.Mode = FileMode(readHex(asc[14:22]))
 	hdr.UID = int(readHex(asc[22:30]))
 	hdr.GID = int(readHex(asc[30:38]))
 	hdr.Links = int(readHex(asc[38:46]))
@@ -78,6 +77,16 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 		if _, err := io.ReadFull(r, buf[:pad]); err != nil {
 			return nil, err
 		}
+	}
+
+	// read link name
+	if hdr.Mode&^ModePerm == ModeSymlink {
+		b := make([]byte, hdr.Size)
+		if _, err := io.ReadFull(r, b); err != nil {
+			return nil, err
+		}
+		hdr.Linkname = string(b)
+		hdr.Size = 0
 	}
 
 	return hdr, nil

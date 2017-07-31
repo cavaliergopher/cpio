@@ -56,15 +56,17 @@ func TestSVR4CRC(t *testing.T) {
 			return
 		}
 
-		w.Reset()
-		_, err = io.CopyN(w, r, hdr.Size)
-		if err != nil {
-			t.Fatalf("error writing to checksum hash: %v", err)
-		}
+		if hdr.Mode.IsRegular() {
+			w.Reset()
+			_, err = io.CopyN(w, r, hdr.Size)
+			if err != nil {
+				t.Fatalf("error writing to checksum hash: %v", err)
+			}
 
-		sum := Checksum(w.Sum32())
-		if sum != hdr.Checksum {
-			t.Errorf("expected checksum %v, got %v for %v", hdr.Checksum, sum, hdr.Name)
+			sum := Checksum(w.Sum32())
+			if sum != hdr.Checksum {
+				t.Errorf("expected checksum %v, got %v for %v", hdr.Checksum, sum, hdr.Name)
+			}
 		}
 	}
 }
@@ -87,6 +89,11 @@ func ExampleNewHash() {
 				log.Fatal(err)
 			}
 			return
+		}
+
+		// skip symlinks, directories, etc.
+		if !hdr.Mode.IsRegular() {
+			continue
 		}
 
 		// read file into hash

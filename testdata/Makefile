@@ -1,7 +1,8 @@
 SOURCES = \
 	gophers.txt \
 	readme.txt \
-	todo.txt
+	todo.txt \
+	checklist.txt
 
 ARCHIVES = \
 	test_odc.cpio \

@@ -61,6 +61,6 @@ func (r *Reader) next() (*Header, error) {
 		return nil, err
 	}
 	r.hdr = hdr
-	r.eof = r.hdr.Size
+	r.eof = hdr.Size
 	return hdr, nil
 }

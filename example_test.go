@@ -24,8 +24,10 @@ func Example() {
 			return
 		}
 
-		fmt.Printf("=== %v ===\n", hdr.Name)
-		io.Copy(os.Stdout, r)
+		if hdr.Mode.IsRegular() {
+			fmt.Printf("=== %v ===\n", hdr.Name)
+			io.Copy(os.Stdout, r)
+		}
 	}
 
 	// Output:

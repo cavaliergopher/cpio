@@ -13,7 +13,7 @@ Contributions welcome!
 - [x] Implement SVR4 Readers and CRC check
 - [x] Implement FileInfo input and output
 - [x] Add example for reading an archive
-- [ ] Implement file types
+- [x] Implement file types
 - [ ] Implement Writers
 - [ ] Implement binary format
 - [ ] Implement portable ASCII
