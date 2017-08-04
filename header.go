@@ -3,7 +3,6 @@ package cpio
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"time"
 )
@@ -25,10 +24,9 @@ const (
 	ModePerm = 0777    // Unix permission bits
 )
 
-var (
-	// headerEOF is the value of the filename of the last header
-	// ("TRAILER!!!\x00") in a CPIO archive.
-	headerEOF = []byte{0x54, 0x52, 0x41, 0x49, 0x4C, 0x45, 0x52, 0x21, 0x21, 0x21, 0x00}
+const (
+	// headerEOF is the value of the filename of the last header in a CPIO archive.
+	headerEOF = "TRAILER!!!"
 )
 
 var (
@@ -148,10 +146,4 @@ func FileInfoHeader(fi os.FileInfo) (*Header, error) {
 	}
 
 	return h, nil
-}
-
-// ReadHeader creates a new Header, reading from r.
-func readHeader(r io.Reader) (*Header, error) {
-	// currently only SVR4 format is supported
-	return readSVR4Header(r)
 }

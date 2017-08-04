@@ -1,43 +1,77 @@
-package cpio
+package cpio_test
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"log"
 	"os"
+
+	"github.com/cavaliercoder/go-cpio"
 )
 
 func Example() {
-	f, err := os.Open("testdata/test_svr4_crc.cpio")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening cpio archive: %v\n", err)
-		return
-	}
-	defer f.Close()
+	// Create a buffer to write our archive to.
+	buf := new(bytes.Buffer)
 
-	r := NewReader(f)
+	// Create a new cpio archive.
+	w := cpio.NewWriter(buf)
+
+	// Add some files to the archive.
+	var files = []struct {
+		Name, Body string
+	}{
+		{"readme.txt", "This archive contains some text files."},
+		{"gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+		{"todo.txt", "Get animal handling license."},
+	}
+	for _, file := range files {
+		hdr := &cpio.Header{
+			Name: file.Name,
+			Mode: 0600,
+			Size: int64(len(file.Body)),
+		}
+		if err := w.WriteHeader(hdr); err != nil {
+			log.Fatalln(err)
+		}
+		if _, err := w.Write([]byte(file.Body)); err != nil {
+			log.Fatalln(err)
+		}
+	}
+	// Make sure to check the error on Close.
+	if err := w.Close(); err != nil {
+		log.Fatalln(err)
+	}
+
+	// Open the cpio archive for reading.
+	b := bytes.NewReader(buf.Bytes())
+	r := cpio.NewReader(b)
+
+	// Iterate through the files in the archive.
 	for {
 		hdr, err := r.Next()
+		if err == io.EOF {
+			// end of cpio archive
+			break
+		}
 		if err != nil {
-			if err != io.EOF {
-				fmt.Fprintf(os.Stderr, "Error reading cpio header: %v\n", err)
-			}
-			return
+			log.Fatalln(err)
 		}
-
-		if hdr.Mode.IsRegular() {
-			fmt.Printf("=== %v ===\n", hdr.Name)
-			io.Copy(os.Stdout, r)
+		fmt.Printf("Contents of %s:\n", hdr.Name)
+		if _, err := io.Copy(os.Stdout, r); err != nil {
+			log.Fatalln(err)
 		}
+		fmt.Println()
 	}
 
 	// Output:
-	// === gophers.txt ===
+	// Contents of readme.txt:
+	// This archive contains some text files.
+	// Contents of gopher.txt:
 	// Gopher names:
 	// George
 	// Geoffrey
 	// Gonzo
-	// === readme.txt ===
-	// This archive contains some text files.
-	// === todo.txt ===
+	// Contents of todo.txt:
 	// Get animal handling license.
 }

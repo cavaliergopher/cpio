@@ -64,3 +64,9 @@ func (r *Reader) next() (*Header, error) {
 	r.eof = hdr.Size
 	return hdr, nil
 }
+
+// ReadHeader creates a new Header, reading from r.
+func readHeader(r io.Reader) (*Header, error) {
+	// currently only SVR4 format is supported
+	return readSVR4Header(r)
+}

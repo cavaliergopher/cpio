@@ -2,6 +2,7 @@ package cpio
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"strconv"
 	"time"
@@ -12,10 +13,17 @@ const (
 	svr4MaxFileSize = 4294967295
 )
 
+var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 07070
+
 func readHex(s string) int64 {
 	// errors are ignored and 0 returned
 	i, _ := strconv.ParseInt(s, 16, 64)
 	return i
+}
+
+func writeHex(b []byte, i int64) {
+	// i needs to be in range of uint32
+	copy(b, fmt.Sprintf("%08X", i))
 }
 
 func readSVR4Header(r io.Reader) (*Header, error) {
@@ -28,7 +36,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 
 	// check magic
 	hasCRC := false
-	if !bytes.HasPrefix(buf[:], []byte{0x30, 0x37, 0x30, 0x37, 0x30}) { // 07070
+	if !bytes.HasPrefix(buf[:], svr4Magic[:5]) {
 		return nil, ErrHeader
 	}
 	if buf[5] == 0x32 { // '2'
@@ -63,12 +71,12 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	if _, err := io.ReadFull(r, name); err != nil {
 		return nil, err
 	}
-	if bytes.Equal(name, headerEOF) {
+	hdr.Name = string(name[:nameSize-1])
+	if hdr.Name == headerEOF {
 		return nil, io.EOF
 	}
-	hdr.Name = string(name[:nameSize-1])
 
-	// padding between end of file and next header
+	// store padding between end of file and next header
 	hdr.pad = (4 - (hdr.Size % 4)) % 4
 
 	// skip to end of header/start of file
@@ -93,4 +101,45 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	}
 
 	return hdr, nil
+}
+
+func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
+	var hdrBuf [110]byte
+	for i := 0; i < len(hdrBuf); i++ {
+		hdrBuf[i] = '0'
+	}
+	copy(hdrBuf[:], svr4Magic)
+	writeHex(hdrBuf[6:14], hdr.Inode)
+	writeHex(hdrBuf[14:22], int64(hdr.Mode))
+	writeHex(hdrBuf[22:30], int64(hdr.UID))
+	writeHex(hdrBuf[30:38], int64(hdr.GID))
+	writeHex(hdrBuf[38:46], int64(hdr.Links))
+	if !hdr.ModTime.IsZero() {
+		writeHex(hdrBuf[46:54], hdr.ModTime.Unix())
+	}
+	writeHex(hdrBuf[54:62], hdr.Size)
+	writeHex(hdrBuf[94:102], int64(len(hdr.Name)+1))
+
+	// write header
+	_, err = w.Write(hdrBuf[:])
+	if err != nil {
+		return
+	}
+
+	// write filename
+	_, err = io.WriteString(w, hdr.Name+"\x00")
+	if err != nil {
+		return
+	}
+
+	// pad to end of filename
+	npad := (4 - ((len(hdrBuf) + len(hdr.Name) + 1) % 4)) % 4
+	_, err = w.Write(zeroBlock[:npad])
+	if err != nil {
+		return
+	}
+
+	// compute padding to end of file
+	pad = (4 - (hdr.Size % 4)) % 4
+	return
 }

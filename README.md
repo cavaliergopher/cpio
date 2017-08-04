@@ -3,18 +3,60 @@
 This package provides a Go native implementation of the CPIO archive file
 format.
 
-__WARNING:__ This package is currently under rapid development and subject to
-bug infestations and frequent breaking changes.
+Currently, only the SVR4 (New ASCII) format is supported, both with and without
+checksums.
 
-Contributions welcome!
+```go
+// Create a buffer to write our archive to.
+buf := new(bytes.Buffer)
 
-## TODO
+// Create a new cpio archive.
+w := cpio.NewWriter(buf)
 
-- [x] Implement SVR4 Readers and CRC check
-- [x] Implement FileInfo input and output
-- [x] Add example for reading an archive
-- [x] Implement file types
-- [ ] Implement Writers
-- [ ] Implement binary format
-- [ ] Implement portable ASCII
-- [ ] Maybe implement Extract convenience method
+// Add some files to the archive.
+var files = []struct {
+  Name, Body string
+}{
+  {"readme.txt", "This archive contains some text files."},
+  {"gopher.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
+  {"todo.txt", "Get animal handling license."},
+}
+for _, file := range files {
+  hdr := &cpio.Header{
+    Name: file.Name,
+    Mode: 0600,
+    Size: int64(len(file.Body)),
+  }
+  if err := w.WriteHeader(hdr); err != nil {
+    log.Fatalln(err)
+  }
+  if _, err := w.Write([]byte(file.Body)); err != nil {
+    log.Fatalln(err)
+  }
+}
+// Make sure to check the error on Close.
+if err := w.Close(); err != nil {
+  log.Fatalln(err)
+}
+
+// Open the cpio archive for reading.
+b := bytes.NewReader(buf.Bytes())
+r := cpio.NewReader(b)
+
+// Iterate through the files in the archive.
+for {
+  hdr, err := r.Next()
+  if err == io.EOF {
+    // end of cpio archive
+    break
+  }
+  if err != nil {
+    log.Fatalln(err)
+  }
+  fmt.Printf("Contents of %s:\n", hdr.Name)
+  if _, err := io.Copy(os.Stdout, r); err != nil {
+    log.Fatalln(err)
+  }
+  fmt.Println()
+}
+```

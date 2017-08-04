@@ -25,16 +25,15 @@ func TestRead(t *testing.T) {
 
 	r := NewReader(f)
 	for {
-		hdr, err := r.Next()
-		if err != nil {
-			if err != io.EOF {
-				t.Errorf("error moving to next header: %v", err)
-			}
+		_, err := r.Next()
+		if err == io.EOF {
 			return
 		}
-
+		if err != nil {
+			t.Errorf("error moving to next header: %v", err)
+			return
+		}
 		// TODO: validate header fields
-		t.Logf("%v", hdr)
 	}
 }
 
@@ -72,23 +71,26 @@ func TestSVR4CRC(t *testing.T) {
 }
 
 func ExampleNewHash() {
-	// open cpio archive
+	// Open the cpio archive for reading.
 	f, err := os.Open("testdata/test_svr4_crc.cpio")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer f.Close()
-
-	w := NewHash()
 	r := NewReader(f)
+
+	// create a Hash
+	h := NewHash()
+
+	// Iterate through the files in the archive.
 	for {
-		// skip to next file
 		hdr, err := r.Next()
-		if err != nil {
-			if err != io.EOF {
-				log.Fatal(err)
-			}
+		if err == io.EOF {
+			// end of cpio archive
 			return
+		}
+		if err != nil {
+			log.Fatal(err)
 		}
 
 		// skip symlinks, directories, etc.
@@ -97,20 +99,21 @@ func ExampleNewHash() {
 		}
 
 		// read file into hash
-		w.Reset()
-		_, err = io.CopyN(w, r, hdr.Size)
+		h.Reset()
+		_, err = io.CopyN(h, r, hdr.Size)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// check hash matches header checksum
-		sum := Checksum(w.Sum32())
+		sum := Checksum(h.Sum32())
 		if sum == hdr.Checksum {
 			fmt.Printf("Checksum OK: %v (%v)\n", hdr.Name, hdr.Checksum)
 		} else {
 			fmt.Printf("Checksum FAIL: %v - expected %v, got %v\n", hdr.Name, hdr.Checksum, sum)
 		}
 	}
+
 	// Output:
 	// Checksum OK: gophers.txt (00000C98)
 	// Checksum OK: readme.txt (00000E3D)
