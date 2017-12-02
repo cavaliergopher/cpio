@@ -13,7 +13,7 @@ const (
 	svr4MaxFileSize = 4294967295
 )
 
-var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 07071
+var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 070701
 
 func readHex(s string) int64 {
 	// errors are ignored and 0 returned
