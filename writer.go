@@ -66,15 +66,21 @@ func (w *Writer) WriteHeader(hdr *Header) (err error) {
 	}
 
 	if hdr.Name != headerEOF {
+		// TODO: should we be mutating hdr here?
 		// ensure all inodes are unique
 		w.inode++
 		if hdr.Inode == 0 {
-			hdr.Inode = w.inode // should we do this without mutating hdr?
+			hdr.Inode = w.inode
 		}
 
 		// ensure file type is set
 		if hdr.Mode&^ModePerm == 0 {
-			hdr.Mode |= ModeRegular // should we do this without mutating hdr?
+			hdr.Mode |= ModeRegular
+		}
+
+		// ensure regular files have at least 1 inbound link
+		if hdr.Links < 1 && hdr.Mode.IsRegular() {
+			hdr.Links = 1
 		}
 	}
 
