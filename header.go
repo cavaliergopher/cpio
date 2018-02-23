@@ -52,6 +52,47 @@ func (m FileMode) IsRegular() bool {
 	return m&^ModePerm == ModeRegular
 }
 
+// IsSymlink reports whether m describes a directory. That is, it tests for the
+// ModeSymlink bit being set in m.
+func (m FileMode) IsSymlink() bool {
+	return m&ModeSymlink != 0
+}
+
+// IsBlockDevice returns true if file is a block device
+func (m FileMode) IsBlockDevice() bool {
+	return m&ModeDevice != 0
+}
+
+// IsCharDevice returns true if file is a charachter device
+func (m FileMode) IsCharDevice() bool {
+	return m&ModeCharDevice != 0
+}
+
+// IsNamedPipe returns true if file is a named pipe
+func (m FileMode) IsNamedPipe() bool {
+	return m&ModeNamedPipe != 0
+}
+
+// IsSocket returns true if file is a socket
+func (m FileMode) IsSocket() bool {
+	return m&ModeSocket != 0
+}
+
+// HasSetUID returns true if file has setuid bit set
+func (m FileMode) HasSetUID() bool {
+	return m&ModeSetuid != 0
+}
+
+// HasSetGID returns true if file has setgid bit set
+func (m FileMode) HasSetGID() bool {
+	return m&ModeSetgid != 0
+}
+
+// HasSticky returns true if file has sticky bit set
+func (m FileMode) HasSticky() bool {
+	return m&ModeSticky != 0
+}
+
 // Perm returns the Unix permission bits in m.
 func (m FileMode) Perm() FileMode {
 	return m & ModePerm
