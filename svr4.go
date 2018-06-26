@@ -13,7 +13,7 @@ const (
 	svr4MaxFileSize = 4294967295
 )
 
-var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 07070
+var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 070701
 
 func readHex(s string) int64 {
 	// errors are ignored and 0 returned
@@ -108,7 +108,11 @@ func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
 	for i := 0; i < len(hdrBuf); i++ {
 		hdrBuf[i] = '0'
 	}
-	copy(hdrBuf[:], svr4Magic)
+	magic := svr4Magic
+	if hdr.Checksum != 0 {
+		magic[5] = 0x32
+	}
+	copy(hdrBuf[:], magic)
 	writeHex(hdrBuf[6:14], hdr.Inode)
 	writeHex(hdrBuf[14:22], int64(hdr.Mode))
 	writeHex(hdrBuf[22:30], int64(hdr.UID))
@@ -119,6 +123,9 @@ func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
 	}
 	writeHex(hdrBuf[54:62], hdr.Size)
 	writeHex(hdrBuf[94:102], int64(len(hdr.Name)+1))
+	if hdr.Checksum != 0 {
+		writeHex(hdrBuf[102:110], int64(hdr.Checksum))
+	}
 
 	// write header
 	_, err = w.Write(hdrBuf[:])
