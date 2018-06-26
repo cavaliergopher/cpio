@@ -122,6 +122,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fi.IsDir():
 		h.Mode |= ModeDir
 		h.Name += "/"
+		h.Size = 0
 	case fm&os.ModeSymlink != 0:
 		h.Mode |= ModeSymlink
 		h.Linkname = link
