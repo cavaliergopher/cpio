@@ -1,9 +1,16 @@
 package cpio
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 )
+
+var magic map[string][]byte = map[string][]byte{
+	"binary-le": []byte{0xc7, 0x71},                         // 070707
+	"svr4":      []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31}, // "070701"
+	"svr4-crc":  []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x32}, // "070702"
+}
 
 // A Reader provides sequential access to the contents of a CPIO archive. A CPIO
 // archive consists of a sequence of files. The Next method advances to the next
@@ -67,6 +74,24 @@ func (r *Reader) next() (*Header, error) {
 
 // ReadHeader creates a new Header, reading from r.
 func readHeader(r io.Reader) (*Header, error) {
-	// currently only SVR4 format is supported
-	return readSVR4Header(r)
+	var binMagic [2]byte
+	if _, err := io.ReadFull(r, binMagic[:]); err != nil {
+		return nil, err
+	}
+	if bytes.Equal(binMagic[:], magic["binary-le"]) {
+		return readBinaryHeader(r)
+	} else {
+		var ascMagic [6]byte
+		copy(ascMagic[:], binMagic[:])
+		if _, err := io.ReadFull(r, ascMagic[2:]); err != nil {
+			return nil, err
+		}
+		if bytes.Equal(ascMagic[:], magic["svr4"]) {
+			return readSVR4Header(r, false)
+		} else if bytes.Equal(ascMagic[:], magic["svr4-crc"]) {
+			return readSVR4Header(r, true)
+		} else {
+			return nil, ErrHeader
+		}
+	}
 }
