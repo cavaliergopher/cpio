@@ -16,7 +16,7 @@ var files = []struct {
 	{"./todo.txt", "Get animal handling license."},
 }
 
-func TestRead(t *testing.T) {
+func TestReadSVR4(t *testing.T) {
 	f, err := os.Open("testdata/test_svr4_crc.cpio")
 	if err != nil {
 		t.Fatalf("error opening test file: %v", err)
