@@ -1,7 +1,6 @@
 package cpio
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"strconv"
@@ -9,11 +8,10 @@ import (
 )
 
 const (
-	svr4MaxNameSize = 4096 // MAX_PATH
-	svr4MaxFileSize = 4294967295
+	svr4MaxNameSize  = 4096 // MAX_PATH
+	svr4MaxFileSize  = 4294967295
+	svr4HeaderLength = 110
 )
-
-var svr4Magic = []byte{0x30, 0x37, 0x30, 0x37, 0x30, 0x31} // 070701
 
 func readHex(s string) int64 {
 	// errors are ignored and 0 returned
@@ -26,43 +24,32 @@ func writeHex(b []byte, i int64) {
 	copy(b, fmt.Sprintf("%08X", i))
 }
 
-func readSVR4Header(r io.Reader) (*Header, error) {
-	var buf [110]byte
-	if _, err := io.ReadFull(r, buf[:]); err != nil {
-		return nil, err
-	}
-
+func readSVR4Header(r io.Reader, hasCRC bool) (*Header, error) {
 	// TODO: check endianness
 
-	// check magic
-	hasCRC := false
-	if !bytes.HasPrefix(buf[:], svr4Magic[:5]) {
-		return nil, ErrHeader
-	}
-	if buf[5] == 0x32 { // '2'
-		hasCRC = true
-	} else if buf[5] != 0x31 { // '1'
-		return nil, ErrHeader
+	var buf [svr4HeaderLength - 6]byte // -6 for magic already read
+	if _, err := io.ReadFull(r, buf[:]); err != nil {
+		return nil, err
 	}
 
 	asc := string(buf[:])
 	hdr := &Header{}
 
-	hdr.Inode = readHex(asc[6:14])
-	hdr.Mode = FileMode(readHex(asc[14:22]))
-	hdr.UID = int(readHex(asc[22:30]))
-	hdr.GID = int(readHex(asc[30:38]))
-	hdr.Links = int(readHex(asc[38:46]))
-	hdr.ModTime = time.Unix(readHex(asc[46:54]), 0)
-	hdr.Size = readHex(asc[54:62])
+	hdr.Inode = readHex(asc[:8])
+	hdr.Mode = FileMode(readHex(asc[8:16]))
+	hdr.UID = int(readHex(asc[16:24]))
+	hdr.GID = int(readHex(asc[24:32]))
+	hdr.Links = int(readHex(asc[32:40]))
+	hdr.ModTime = time.Unix(readHex(asc[40:48]), 0)
+	hdr.Size = readHex(asc[48:56])
 	if hdr.Size > svr4MaxFileSize {
 		return nil, ErrHeader
 	}
-	nameSize := readHex(asc[94:102])
+	nameSize := readHex(asc[88:96])
 	if nameSize < 1 || nameSize > svr4MaxNameSize {
 		return nil, ErrHeader
 	}
-	hdr.Checksum = Checksum(readHex(asc[102:110]))
+	hdr.Checksum = Checksum(readHex(asc[96:104]))
 	if !hasCRC && hdr.Checksum != 0 {
 		return nil, ErrHeader
 	}
@@ -80,7 +67,8 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	hdr.pad = (4 - (hdr.Size % 4)) % 4
 
 	// skip to end of header/start of file
-	pad := (4 - (len(buf)+len(name))%4) % 4
+	// +6 for magic bytes already read
+	pad := (4 - (6+len(buf)+len(name))%4) % 4
 	if pad > 0 {
 		if _, err := io.ReadFull(r, buf[:pad]); err != nil {
 			return nil, err
@@ -104,15 +92,17 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 }
 
 func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
-	var hdrBuf [110]byte
+	var hdrBuf [svr4HeaderLength]byte
 	for i := 0; i < len(hdrBuf); i++ {
 		hdrBuf[i] = '0'
 	}
-	magic := svr4Magic
+	var hMagic [6]byte
 	if hdr.Checksum != 0 {
-		magic[5] = 0x32
+		copy(hMagic[:], magic["svr4-crc"][:])
+	} else {
+		copy(hMagic[:], magic["svr4"][:])
 	}
-	copy(hdrBuf[:], magic)
+	copy(hdrBuf[:], hMagic[:])
 	writeHex(hdrBuf[6:14], hdr.Inode)
 	writeHex(hdrBuf[14:22], int64(hdr.Mode))
 	writeHex(hdrBuf[22:30], int64(hdr.UID))

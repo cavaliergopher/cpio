@@ -31,6 +31,7 @@ const (
 
 var (
 	ErrHeader = errors.New("cpio: invalid cpio header")
+	ErrMagic  = errors.New("cpio: unrecognized magic number")
 )
 
 // A FileMode represents a file's mode and permission bits.
