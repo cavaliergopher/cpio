@@ -31,6 +31,15 @@ func NewReader(r io.Reader) *Reader {
 	}
 }
 
+// NewRobustReader creates a new Reader which will try to skip errors when
+// reading from r.
+func NewRobustReader(r io.Reader) *Reader {
+	return &Reader{
+		r:      r,
+		robust: true,
+	}
+}
+
 // Read reads from the current entry in the CPIO archive. It returns 0, io.EOF
 // when it reaches the end of that entry, until Next is called to advance to the
 // next entry.
