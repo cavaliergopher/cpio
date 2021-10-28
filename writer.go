@@ -83,7 +83,7 @@ func (w *Writer) WriteHeader(hdr *Header) (err error) {
 
 		// ensure file type is set
 		if hdr.Mode&^ModePerm == 0 {
-			hdr.Mode |= ModeRegular
+			hdr.Mode |= TypeReg
 		}
 
 		// ensure regular files have at least 1 inbound link
