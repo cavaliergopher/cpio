@@ -8,21 +8,12 @@ import (
 	"testing"
 )
 
-var files = []struct {
-	Name, Body string
-}{
-	{"./gophers.txt", "Gopher names:\nGeorge\nGeoffrey\nGonzo"},
-	{"./readme.txt", "This archive contains some text files."},
-	{"./todo.txt", "Get animal handling license."},
-}
-
 func TestRead(t *testing.T) {
 	f, err := os.Open("testdata/test_svr4_crc.cpio")
 	if err != nil {
 		t.Fatalf("error opening test file: %v", err)
 	}
 	defer f.Close()
-
 	r := NewReader(f)
 	for {
 		_, err := r.Next()
@@ -43,7 +34,6 @@ func TestSVR4CRC(t *testing.T) {
 		t.Fatalf("error opening test file: %v", err)
 	}
 	defer f.Close()
-
 	w := NewHash()
 	r := NewReader(f)
 	for {
@@ -54,15 +44,13 @@ func TestSVR4CRC(t *testing.T) {
 			}
 			return
 		}
-
 		if hdr.Mode.IsRegular() {
 			w.Reset()
 			_, err = io.CopyN(w, r, hdr.Size)
 			if err != nil {
 				t.Fatalf("error writing to checksum hash: %v", err)
 			}
-
-			sum := Checksum(w.Sum32())
+			sum := w.Sum32()
 			if sum != hdr.Checksum {
 				t.Errorf("expected checksum %v, got %v for %v", hdr.Checksum, sum, hdr.Name)
 			}
@@ -78,9 +66,6 @@ func ExampleNewHash() {
 	}
 	defer f.Close()
 	r := NewReader(f)
-
-	// create a Hash
-	h := NewHash()
 
 	// Iterate through the files in the archive.
 	for {
@@ -99,18 +84,18 @@ func ExampleNewHash() {
 		}
 
 		// read file into hash
-		h.Reset()
+		h := NewHash()
 		_, err = io.CopyN(h, r, hdr.Size)
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		// check hash matches header checksum
-		sum := Checksum(h.Sum32())
+		sum := h.Sum32()
 		if sum == hdr.Checksum {
-			fmt.Printf("Checksum OK: %v (%v)\n", hdr.Name, hdr.Checksum)
+			fmt.Printf("Checksum OK: %s (%08X)\n", hdr.Name, hdr.Checksum)
 		} else {
-			fmt.Printf("Checksum FAIL: %v - expected %v, got %v\n", hdr.Name, hdr.Checksum, sum)
+			fmt.Printf("Checksum FAIL: %s - expected %08X, got %08X\n", hdr.Name, hdr.Checksum, sum)
 		}
 	}
 

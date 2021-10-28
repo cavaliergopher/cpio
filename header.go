@@ -8,6 +8,7 @@ import (
 )
 
 // Mode constants from the cpio spec.
+// TODO: rename to Type
 const (
 	ModeSetuid     = 04000   // Set uid
 	ModeSetgid     = 02000   // Set gid
@@ -30,6 +31,7 @@ const (
 )
 
 var (
+	// ErrHeader indicates there was an error decoding a CPIO header entry.
 	ErrHeader = errors.New("cpio: invalid cpio header")
 )
 
@@ -57,49 +59,49 @@ func (m FileMode) Perm() FileMode {
 	return m & ModePerm
 }
 
-// Checksum is the sum of all bytes	in the file data. This sum is computed
-// treating all bytes as unsigned values and using unsigned arithmetic. Only
-// the least-significant 32 bits of the sum are stored. Use NewHash to compute
-// the actual checksum of an archived file.
-type Checksum uint32
-
-func (c Checksum) String() string {
-	return fmt.Sprintf("%08X", uint32(c))
-}
-
-// A Header represents a single header in a CPIO archive.
+// A Header represents a single header in a CPIO archive. Some fields may not be
+// populated.
+//
+// For forward compatibility, users that retrieve a Header from Reader.Next,
+// mutate it in some ways, and then pass it back to Writer.WriteHeader should do
+// so by creating a new Header and copying the fields that they are interested
+// in preserving.
 type Header struct {
+	Name     string // Name of the file entry
+	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
+	Links    int    // Number of inbound links
+
+	Size int64    // Size in bytes
+	Mode FileMode // Permission and mode bits
+	Uid  int      // User id of the owner
+	Guid int      // Group id of the owner
+
+	ModTime time.Time // Modification time
+
+	Checksum uint32 // Computed checksum
+
 	DeviceID int
-	Inode    int64     // inode number
-	Mode     FileMode  // permission and mode bits
-	UID      int       // user id of the owner
-	GID      int       // group id of the owner
-	Links    int       // number of inbound links
-	ModTime  time.Time // modified time
-	Size     int64     // size in bytes
-	Name     string    // filename
-	Linkname string    // target name of link
-	Checksum Checksum  // computed checksum
+	Inode    int64 // Inode number
 
 	pad int64 // bytes to pad before next header
 }
 
-// FileInfo returns an os.FileInfo for the Header.
+// FileInfo returns an fs.FileInfo for the Header.
 func (h *Header) FileInfo() os.FileInfo {
-	return headerFileInfo{h}
+	return fileInfo{h}
 }
 
-// FileInfoHeader creates a partially-populated Header from fi.
-// If fi describes a symlink, FileInfoHeader records link as the link target.
-// If fi describes a directory, a slash is appended to the name.
-// Because os.FileInfo's Name method returns only the base name of
-// the file it describes, it may be necessary to modify the Name field
-// of the returned header to provide the full path name of the file.
+// FileInfoHeader creates a partially-populated Header from fi. If fi describes
+// a symlink, FileInfoHeader records link as the link target. If fi describes a
+// directory, a slash is appended to the name.
+//
+// Since fs.FileInfo's Name method returns only the base name of the file it
+// describes, it may be necessary to modify Header.Name to provide the full path
+// name of the file.
 func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fi == nil {
 		return nil, errors.New("cpio: FileInfo is nil")
 	}
-
 	if sys, ok := fi.Sys().(*Header); ok {
 		// This FileInfo came from a Header (not the OS). Return a copy of the
 		// original Header.
@@ -107,7 +109,6 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		*h = *sys
 		return h, nil
 	}
-
 	fm := fi.Mode()
 	h := &Header{
 		Name:    fi.Name(),
@@ -115,7 +116,6 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 		ModTime: fi.ModTime(),
 		Size:    fi.Size(),
 	}
-
 	switch {
 	case fm.IsRegular():
 		h.Mode |= ModeRegular
@@ -148,6 +148,5 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	if fm&os.ModeSticky != 0 {
 		h.Mode |= ModeSticky
 	}
-
 	return h, nil
 }

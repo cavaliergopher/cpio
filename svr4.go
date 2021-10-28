@@ -39,22 +39,22 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	if !bytes.HasPrefix(buf[:], svr4Magic[:5]) {
 		return nil, ErrHeader
 	}
-	if buf[5] == 0x32 { // '2'
+	if buf[5] == '2' {
 		hasCRC = true
-	} else if buf[5] != 0x31 { // '1'
+	} else if buf[5] != '1' {
 		return nil, ErrHeader
 	}
 
 	asc := string(buf[:])
-	hdr := &Header{}
-
-	hdr.Inode = readHex(asc[6:14])
-	hdr.Mode = FileMode(readHex(asc[14:22]))
-	hdr.UID = int(readHex(asc[22:30]))
-	hdr.GID = int(readHex(asc[30:38]))
-	hdr.Links = int(readHex(asc[38:46]))
-	hdr.ModTime = time.Unix(readHex(asc[46:54]), 0)
-	hdr.Size = readHex(asc[54:62])
+	hdr := &Header{
+		Inode:   readHex(asc[6:14]),
+		Mode:    FileMode(readHex(asc[14:22])),
+		Uid:     int(readHex(asc[22:30])),
+		Guid:    int(readHex(asc[30:38])),
+		Links:   int(readHex(asc[38:46])),
+		ModTime: time.Unix(readHex(asc[46:54]), 0),
+		Size:    readHex(asc[54:62]),
+	}
 	if hdr.Size > svr4MaxFileSize {
 		return nil, ErrHeader
 	}
@@ -62,7 +62,7 @@ func readSVR4Header(r io.Reader) (*Header, error) {
 	if nameSize < 1 || nameSize > svr4MaxNameSize {
 		return nil, ErrHeader
 	}
-	hdr.Checksum = Checksum(readHex(asc[102:110]))
+	hdr.Checksum = uint32(readHex(asc[102:110]))
 	if !hasCRC && hdr.Checksum != 0 {
 		return nil, ErrHeader
 	}
@@ -115,8 +115,8 @@ func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
 	copy(hdrBuf[:], magic)
 	writeHex(hdrBuf[6:14], hdr.Inode)
 	writeHex(hdrBuf[14:22], int64(hdr.Mode))
-	writeHex(hdrBuf[22:30], int64(hdr.UID))
-	writeHex(hdrBuf[30:38], int64(hdr.GID))
+	writeHex(hdrBuf[22:30], int64(hdr.Uid))
+	writeHex(hdrBuf[30:38], int64(hdr.Guid))
 	writeHex(hdrBuf[38:46], int64(hdr.Links))
 	if !hdr.ModTime.IsZero() {
 		writeHex(hdrBuf[46:54], hdr.ModTime.Unix())

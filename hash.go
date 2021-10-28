@@ -9,7 +9,7 @@ type digest struct {
 	sum uint32
 }
 
-// NewHash returns a new hash.Hash32 computing the SVR4 checksum.
+// NewHash returns a new hash.Hash32 for computing SVR4 checksums.
 func NewHash() hash.Hash32 {
 	return &digest{}
 }

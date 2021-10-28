@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	cpio "github.com/cavaliercoder/go-cpio"
+	"github.com/cavaliergopher/cpio"
 )
 
 func store(w *cpio.Writer, fn string) error {
@@ -31,22 +31,18 @@ func store(w *cpio.Writer, fn string) error {
 			return err
 		}
 	}
-
 	return err
 }
 
 func TestWriter(t *testing.T) {
 	var buf bytes.Buffer
 	w := cpio.NewWriter(&buf)
-
 	if err := store(w, "testdata/etc"); err != nil {
 		t.Fatalf("store: %v", err)
 	}
-
 	if err := store(w, "testdata/etc/hosts"); err != nil {
 		t.Fatalf("store: %v", err)
 	}
-
 	if err := w.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}

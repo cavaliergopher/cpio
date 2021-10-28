@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/cavaliercoder/go-cpio"
+	"github.com/cavaliergopher/cpio"
 )
 
 func Example() {
@@ -38,14 +38,14 @@ func Example() {
 			log.Fatalln(err)
 		}
 	}
+
 	// Make sure to check the error on Close.
 	if err := w.Close(); err != nil {
 		log.Fatalln(err)
 	}
 
 	// Open the cpio archive for reading.
-	b := bytes.NewReader(buf.Bytes())
-	r := cpio.NewReader(b)
+	r := cpio.NewReader(buf)
 
 	// Iterate through the files in the archive.
 	for {
