@@ -24,9 +24,6 @@ func store(w *cpio.Writer, fn string) error {
 	if err != nil {
 		return err
 	}
-	if hdr.Mode&^cpio.ModePerm == cpio.ModeSymlink {
-		hdr.Size = 0 // FIXME: should be done in FileInfoHeader
-	}
 	if err := w.WriteHeader(hdr); err != nil {
 		return err
 	}
