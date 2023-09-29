@@ -10,23 +10,29 @@ import (
 )
 
 func store(w *cpio.Writer, fn string) error {
-	f, err := os.Open(fn)
+	fi, err := os.Lstat(fn)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		return err
+	var link string
+	if fi.Mode()&os.ModeSymlink != 0 {
+		if link, err = os.Readlink(fn); err != nil {
+			return err
+		}
 	}
-	hdr, err := cpio.FileInfoHeader(fi, "")
+	hdr, err := cpio.FileInfoHeader(fi, link)
 	if err != nil {
 		return err
 	}
 	if err := w.WriteHeader(hdr); err != nil {
 		return err
 	}
-	if !fi.IsDir() {
+	if fi.Mode().IsRegular() {
+		f, err := os.Open(fn)
+		if err != nil {
+			return err
+		}
+		defer f.Close()
 		if _, err := io.Copy(w, f); err != nil {
 			return err
 		}
@@ -45,5 +51,31 @@ func TestWriter(t *testing.T) {
 	}
 	if err := w.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
+	}
+}
+
+func TestWriter_Symlink(t *testing.T) {
+	var buf bytes.Buffer
+	w := cpio.NewWriter(&buf)
+	func() {
+		defer func() {
+			if err := w.Close(); err != nil {
+				t.Fatalf("Close: %v", err)
+			}
+		}()
+		if err := store(w, "testdata/checklist.txt"); err != nil {
+			t.Fatalf("store: %v", err)
+		}
+	}()
+	r := cpio.NewReader(&buf)
+	hdr, err := r.Next()
+	if err != nil {
+		t.Fatalf("Next: %v", err)
+	}
+	if hdr.Mode&^cpio.ModePerm != cpio.ModeSymlink {
+		t.Fatalf("file has mode %s, expected %s (ModeSymlink)", hdr.Mode, cpio.FileMode(cpio.ModeSymlink))
+	}
+	if hdr.Linkname == "" {
+		t.Fatal("Empty Linkname on ModeSymlink file")
 	}
 }

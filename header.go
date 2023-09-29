@@ -126,6 +126,7 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
 	case fm&os.ModeSymlink != 0:
 		h.Mode |= ModeSymlink
 		h.Linkname = link
+		h.Size = 0 // adjusted to len(Linkname) while writing header
 	case fm&os.ModeDevice != 0:
 		if fm&os.ModeCharDevice != 0 {
 			h.Mode |= ModeCharDevice
