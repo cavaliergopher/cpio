@@ -121,6 +121,9 @@ func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
 	if !hdr.ModTime.IsZero() {
 		writeHex(hdrBuf[46:54], hdr.ModTime.Unix())
 	}
+	if hdr.Mode&^ModePerm == ModeSymlink {
+		hdr.Size = int64(len(hdr.Linkname))
+	}
 	writeHex(hdrBuf[54:62], hdr.Size)
 	writeHex(hdrBuf[94:102], int64(len(hdr.Name)+1))
 	if hdr.Checksum != 0 {
@@ -142,6 +145,11 @@ func writeSVR4Header(w io.Writer, hdr *Header) (pad int64, err error) {
 	// pad to end of filename
 	npad := (4 - ((len(hdrBuf) + len(hdr.Name) + 1) % 4)) % 4
 	_, err = w.Write(zeroBlock[:npad])
+	if err != nil {
+		return
+	}
+
+	_, err = io.WriteString(w, hdr.Linkname)
 	if err != nil {
 		return
 	}
