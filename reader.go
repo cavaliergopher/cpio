@@ -38,6 +38,9 @@ func (r *Reader) Read(p []byte) (n int, err error) {
 	}
 	n, err = r.r.Read(p[0:rn])
 	r.eof -= int64(n)
+	if err == io.EOF && r.eof > 0 {
+		err = io.ErrUnexpectedEOF
+	}
 	return
 }
 
